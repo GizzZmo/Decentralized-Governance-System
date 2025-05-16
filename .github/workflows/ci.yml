@@ -1,0 +1,61 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install Dependencies
+        run: |
+          pip install -r backend/requirements.txt
+        
+      - name: Run Tests
+        run: |
+          pytest tests/
+
+  security_audit:
+    name: Smart Contract Security Audit
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Solidity Audit Tools
+        run: |
+          npm install -g slither-analyzer mythril
+
+      - name: Run Slither Audit
+        run: slither contracts/
+
+      - name: Run Mythril Security Check
+        run: myth analyze contracts/Voting.sol
+
+  deploy:
+    name: Deploy to Blockchain
+    runs-on: ubuntu-latest
+    needs: security_audit
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Deploy Smart Contracts
+        run: |
+          npx hardhat deploy --network mainnet
